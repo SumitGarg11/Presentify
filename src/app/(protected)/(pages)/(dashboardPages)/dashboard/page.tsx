@@ -35,11 +35,11 @@ const DashboardPage = () => {
             Projects
           </h1>
           <p className="text-base font-normal dark:text-secondary">
-            All of your works in one place
+            All of your works in one sumit
           </p>
         </div>
       </div>
-      {projects.length > 0 ? <Projects projects={projects}/> : <NotFound />}
+      {projects.length > 0 ? <Projects projects={projects} /> : <NotFound />}
     </div>
   );
 };

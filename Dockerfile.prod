@@ -1,0 +1,49 @@
+# Build stage
+FROM oven/bun:latest AS builder
+
+WORKDIR /usr/src/presentify
+
+# Copy package files first for better caching
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+# Copy the rest of the application
+COPY . .
+
+# Generate Prisma client and build the application
+RUN bunx prisma generate --no-engine && bun run build
+
+# Production stage
+FROM oven/bun:latest AS runner
+
+WORKDIR /usr/src/presentify
+
+# Create a non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy only necessary files from builder
+COPY --from=builder --chown=nextjs:nodejs /usr/src/presentify/package.json /usr/src/presentify/bun.lock ./
+COPY --from=builder --chown=nextjs:nodejs /usr/src/presentify/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /usr/src/presentify/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /usr/src/presentify/public ./public
+COPY --from=builder --chown=nextjs:nodejs /usr/src/presentify/prisma ./prisma
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV AUTH_SECRET=${AUTH_SECRET}
+ENV AUTH_GOOGLE_ID=${AUTH_GOOGLE_ID}
+ENV AUTH_GOOGLE_SECRET=${AUTH_GOOGLE_SECRET}
+ENV AUTH_RESEND_KEY=${AUTH_RESEND_KEY}
+ENV DATABASE_URL=${DATABASE_URL}
+ENV GOOGLE_GENAI_API_KEY=${GOOGLE_GENAI_API_KEY}
+
+# Expose the port
+EXPOSE 3000
+
+# Switch to non-root user
+USER nextjs
+
+# Start the application
+CMD ["bun", "run", "start"] 
